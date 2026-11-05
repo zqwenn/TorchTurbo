@@ -118,6 +118,43 @@ class MixedPrecisionConfig:
 
 
 @dataclass
+class QuantizationConfig:
+    """Low precision compute policy with high precision parameter storage."""
+
+    enabled: bool = False
+    backend: str = "torchao_npu"
+    format: str = "e4m3"
+    linear: bool = True
+    moe: bool = True
+    dgrad: bool = True
+    wgrad: bool = True
+    include_fqns: list[str] = field(default_factory=list)
+    exclude_fqns: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.enabled = string_to_bool(self.enabled)
+        self.linear = string_to_bool(self.linear)
+        self.moe = string_to_bool(self.moe)
+        self.dgrad = string_to_bool(self.dgrad)
+        self.wgrad = string_to_bool(self.wgrad)
+        if self.backend != "torchao_npu":
+            raise ValueError("quantization.backend must be torchao_npu")
+        if self.format not in ("e4m3", "hif8"):
+            raise ValueError("quantization.format must be e4m3 or hif8")
+        self.include_fqns = self._validate_patterns(self.include_fqns, "include_fqns")
+        self.exclude_fqns = self._validate_patterns(self.exclude_fqns, "exclude_fqns")
+
+    @staticmethod
+    def _validate_patterns(patterns: list[str], name: str) -> list[str]:
+        if not isinstance(patterns, list) or any(
+            not isinstance(pattern, str) or not pattern for pattern in patterns
+        ):
+            raise ValueError(f"quantization.{name} must be a list of nonempty strings")
+        return list(patterns)
+
+
+
+@dataclass
 class OpsConfig:
     """Op dispatch policy and optional per-op overrides."""
 
@@ -623,6 +660,8 @@ class EngineConfig:
     use_deterministic_algorithms: bool = False
     """Require deterministic algorithms for the selected device runtime."""
 
+    quantization: QuantizationConfig = field(default_factory=QuantizationConfig)
+
     ops: OpsConfig = field(default_factory=OpsConfig)
     """Op dispatch settings."""
 
@@ -866,6 +905,7 @@ class EngineConfig:
             "diffusion",
             "mfu",
             "gbs",
+            "quantization",
             "plugin_paths",
             "extra",
         }
@@ -878,6 +918,7 @@ class EngineConfig:
             mixed_precision=mp,
             use_deterministic_algorithms=use_deterministic_algorithms,
             ops=ops,
+            quantization=QuantizationConfig(**(d.get("quantization") or {})),
             backend_config=backend_config,
             activation_checkpointing=ac,
             comm=comm,
@@ -1135,6 +1176,7 @@ def build_from_args(
         mixed_precision=_parse_mixed_precision_policy(fields["mixed_precision"]),
         use_deterministic_algorithms=fields.get("use_deterministic_algorithms", False),
         parallel_plan=parallel_plan,
+        quantization=QuantizationConfig(**(fields.get("quantization") or {})),
         ops=_build_ops_config(fields),
         backend_config=_build_fsdp_config(fields),
         activation_checkpointing=ActivationCheckpointingConfig(**ac_d),

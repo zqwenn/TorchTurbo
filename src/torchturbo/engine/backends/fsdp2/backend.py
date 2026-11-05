@@ -479,6 +479,13 @@ class FSDP2Backend(BaseBackend):
         # Freeze model-authored patterns into exact targets before later
         # transformations can add wrappers or replace parameter objects.
         self._model_fqn_map = build_model_fqn_map(model)
+        if self.config.quantization.enabled:
+            from ....quantization.modules import apply_quantization
+
+            apply_quantization(
+                model, self.config.quantization, model_fqn_map=self._model_fqn_map
+            )
+
         self._resolved_parallel_plan = self._compile_parallel_plan(
             plan, self._model_fqn_map
         )

@@ -672,9 +672,7 @@ class GroupedMLPLoRA(nn.Module, BaseTunerLayer):
             # ===== FC1: base GEMM + LoRA GEMM =====
             # Base fc1.
             fc1_base_dtype = x.dtype
-            fc1_output = ops.grouped_matmul(
-                x, w1, tokens_per_expert, trans_b=False
-            )
+            fc1_output = base._grouped_matmul(x, w1, tokens_per_expert)
 
             # LoRA fc1: additive residual via grouped GEMM.
             for adapter_name in active:
@@ -702,8 +700,8 @@ class GroupedMLPLoRA(nn.Module, BaseTunerLayer):
 
             # ===== FC2: base GEMM + LoRA GEMM =====
             fc2_base_dtype = intermediate_parallel.dtype
-            fc2_output = ops.grouped_matmul(
-                intermediate_parallel, w2, tokens_per_expert, trans_b=False
+            fc2_output = base._grouped_matmul(
+                intermediate_parallel, w2, tokens_per_expert
             )
 
             # LoRA fc2: additive residual via grouped GEMM.

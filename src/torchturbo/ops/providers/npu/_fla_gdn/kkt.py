@@ -2,7 +2,7 @@
 
 import torch
 import triton
-from fla.ops.triton.triton_core.chunk_scaled_dot_kkt import (
+from fla_npu.ops.triton.triton_core.chunk_scaled_dot_kkt import (
     chunk_scaled_dot_kkt_fwd_kernel as _upstream_kernel,
 )
 from fla_npu.ops.triton import chunk_scaled_dot_kkt_fwd as _upstream_fwd
@@ -51,7 +51,8 @@ def chunk_scaled_dot_kkt_fwd(
         cu_seqlens=cu_seqlens,
         chunk_indices=chunk_indices,
         T=tokens,
-        H=heads,
+        H_K=heads,
+        H_V=heads,
         K=dim,
         BT=chunk_size,
         BK=128,

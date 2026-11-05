@@ -33,6 +33,58 @@ if _REPO_SRC not in sys.path:
     sys.path.insert(0, _REPO_SRC)
 
 
+def _patch_npu_cross_entropy_ignore_index() -> None:
+    import torch
+    import torch.nn.functional as functional
+
+    original = functional.cross_entropy
+
+    def cross_entropy(
+        input: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor | None = None,
+        size_average: bool | None = None,
+        ignore_index: int = -100,
+        reduce: bool | None = None,
+        reduction: str = "mean",
+        label_smoothing: float = 0.0,
+    ) -> torch.Tensor:
+        if input.device.type != "npu" or ignore_index >= 0:
+            return original(
+                input, target, weight, size_average, ignore_index, reduce, reduction, label_smoothing
+            )
+
+        class_count = input.shape[1]
+        logits = input.movedim(1, -1).reshape(-1, class_count)
+        labels = target.reshape(-1)
+        valid = labels != ignore_index
+        if not torch.any(~valid):
+            return original(
+                input, target, weight, size_average, ignore_index, reduce, reduction, label_smoothing
+            )
+        logits = logits[valid]
+        labels = labels[valid]
+        if labels.numel() == 0:
+            return input.sum() * 0
+        return original(logits, labels, weight, size_average, -100, reduce, reduction, label_smoothing)
+
+    functional.cross_entropy = cross_entropy
+
+    def cross_entropy_module_forward(module, input, target):
+        return cross_entropy(
+            input,
+            target,
+            module.weight,
+            None,
+            module.ignore_index,
+            None,
+            module.reduction,
+            module.label_smoothing,
+        )
+
+    torch.nn.CrossEntropyLoss.forward = cross_entropy_module_forward
+
+
 def auto_detect_dataset_dir() -> str | None:
     """Auto-detect LlamaFactory's data/ directory from the package location."""
     try:
@@ -49,6 +101,7 @@ def auto_detect_dataset_dir() -> str | None:
 
 
 def main():
+    _patch_npu_cross_entropy_ignore_index()
     import torchturbo
     from torchturbo.engine.args import parse_torchturbo_args, set_torchturbo_args
 

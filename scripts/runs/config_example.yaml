@@ -36,6 +36,17 @@ engine_config:
       "**.expert":
         no_shard: true
 
+  quantization:
+    enabled: false
+    backend: torchao_npu
+    format: e4m3  # e4m3: MXFP8 block-32; hif8: per-tensor, ranges 15/15/224.
+    linear: true
+    moe: true
+    dgrad: true  # Low precision input-gradient GEMM
+    wgrad: true  # Low precision weight-gradient GEMM
+    include_fqns: []
+    exclude_fqns: []
+
   mixed_precision: bf16
   use_deterministic_algorithms: false
 

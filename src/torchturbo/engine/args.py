@@ -162,6 +162,15 @@ class TorchTurboArgs:
     backend: str | None = None
     mixed_precision: str | None = None
     op_policy: str | None = None
+    quantization_enabled: bool | None = None
+    quantization_backend: str | None = None
+    quantization_format: str | None = None
+    quantization_linear: bool | None = None
+    quantization_moe: bool | None = None
+    quantization_dgrad: bool | None = None
+    quantization_wgrad: bool | None = None
+    quantization_include_fqns: list[str] | None = None
+    quantization_exclude_fqns: list[str] | None = None
     optimizer_name: str | None = None
     use_deterministic_algorithms: bool = False
     sp_size: int | None = None
@@ -251,6 +260,79 @@ class TurboArgSpec:
 
 
 _TURBO_ARG_SPECS: tuple[TurboArgSpec, ...] = (
+    TurboArgSpec(
+        name="quantization_enabled",
+        args_name="quantization_enabled",
+        cli_name="--tt_quantization_enabled",
+        config_path="quantization.enabled",
+        type=string_to_bool,
+        help="Low precision compute setting: enabled.",
+    ),
+    TurboArgSpec(
+        name="quantization_backend",
+        args_name="quantization_backend",
+        cli_name="--tt_quantization_backend",
+        config_path="quantization.backend",
+        choices=("torchao_npu",),
+        help="Low precision compute setting: backend.",
+    ),
+    TurboArgSpec(
+        name="quantization_format",
+        args_name="quantization_format",
+        cli_name="--tt_quantization_format",
+        config_path="quantization.format",
+        choices=("e4m3", "hif8"),
+        help="Operand format: e4m3 (MXFP8 block-32) or hif8 (per-tensor).",
+    ),
+    TurboArgSpec(
+        name="quantization_linear",
+        args_name="quantization_linear",
+        cli_name="--tt_quantization_linear",
+        config_path="quantization.linear",
+        type=string_to_bool,
+        help="Low precision compute setting: linear.",
+    ),
+    TurboArgSpec(
+        name="quantization_moe",
+        args_name="quantization_moe",
+        cli_name="--tt_quantization_moe",
+        config_path="quantization.moe",
+        type=string_to_bool,
+        help="Low precision compute setting: moe.",
+    ),
+    TurboArgSpec(
+        name="quantization_dgrad",
+        args_name="quantization_dgrad",
+        cli_name="--tt_quantization_dgrad",
+        config_path="quantization.dgrad",
+        type=string_to_bool,
+        help="Low precision compute setting: dgrad.",
+    ),
+    TurboArgSpec(
+        name="quantization_wgrad",
+        args_name="quantization_wgrad",
+        cli_name="--tt_quantization_wgrad",
+        config_path="quantization.wgrad",
+        type=string_to_bool,
+        help="Low precision compute setting: wgrad.",
+    ),
+    TurboArgSpec(
+        name="quantization_include_fqns",
+        args_name="quantization_include_fqns",
+        cli_name="--tt_quantization_include_fqns",
+        config_path="quantization.include_fqns",
+        action="append",
+        help="Low precision compute setting: include_fqns.",
+    ),
+    TurboArgSpec(
+        name="quantization_exclude_fqns",
+        args_name="quantization_exclude_fqns",
+        cli_name="--tt_quantization_exclude_fqns",
+        config_path="quantization.exclude_fqns",
+        action="append",
+        help="Low precision compute setting: exclude_fqns.",
+    ),
+
     TurboArgSpec(
         name="config_path",
         args_name="config_path",

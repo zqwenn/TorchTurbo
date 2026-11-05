@@ -309,7 +309,9 @@ class ShardedParamManager:
                     continue
                 shutil.copy2(item, dst_path / item.name)
             elif item.is_dir():
-                # Copy directories recursively
+                # Model cache metadata may be read-only and is not part of HF export.
+                if item.name == ".cache":
+                    continue
                 shutil.copytree(item, dst_path / item.name, dirs_exist_ok=True)
 
     def _save_expert_weight1_to_hf(self, name, full_tensor, local_params, full_sd):

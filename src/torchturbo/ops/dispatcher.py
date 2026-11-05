@@ -326,6 +326,25 @@ class OpDispatcher:
             impl=impl,
         )
 
+    def quantized_grouped_matmul(
+        self,
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        group_list: torch.Tensor,
+        *,
+        format: str = "e4m3",
+        trans_b: bool = False,
+        dgrad: bool = True,
+        wgrad: bool = True,
+        impl: str | None = None,
+    ) -> torch.Tensor:
+        return self._dispatch(
+            "quantized_grouped_matmul",
+            x, weight, group_list,
+            format=format, trans_b=trans_b, dgrad=dgrad, wgrad=wgrad,
+            impl=impl,
+        )
+
     def matmul_add(
         self,
         accumulator,

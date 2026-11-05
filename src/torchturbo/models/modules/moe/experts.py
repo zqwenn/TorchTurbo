@@ -49,6 +49,7 @@ class GroupedMLP(torch.nn.Module):
         self.config = config
         self.num_local_experts = num_local_experts
         self.layer_number = layer_number
+        self.quantization_config = None
         limit_list = getattr(config, "moe_swiglu_limit", None)
         if (
             limit_list is not None
@@ -178,6 +179,23 @@ class GroupedMLP(torch.nn.Module):
             ),
         }
 
+    def _grouped_matmul(
+        self,
+        inputs: torch.Tensor,
+        weight: torch.Tensor,
+        counts: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.quantization_config is None:
+            return ops.grouped_matmul(inputs, weight, counts, trans_b=False)
+        config = self.quantization_config
+        if config.format == "hif8":
+            offsets = counts.to(device=inputs.device, dtype=torch.int64).cumsum(0)
+            return self.grouped_gemm(inputs, weight, offsets, trans_b=False)
+        return ops.quantized_grouped_matmul(
+            inputs, weight, counts, format=config.format,
+            dgrad=config.dgrad, wgrad=config.wgrad,
+        )
+
     def activation_func_with_probs(
         self, hidden_states: torch.Tensor, probs: torch.Tensor,
     ) -> torch.Tensor:
@@ -243,14 +261,14 @@ class GroupedMLP(torch.nn.Module):
                 self.num_local_experts, -1, self.config.hidden_size
             )
 
-            fc1_output = ops.grouped_matmul(
-                permuted_local_hidden_states, w1, tokens_per_expert, trans_b=False
+            fc1_output = self._grouped_matmul(
+                permuted_local_hidden_states, w1, tokens_per_expert
             )
             intermediate_parallel = self.activation_func_with_probs(
                 fc1_output, activation_probs
             )
-            fc2_output = ops.grouped_matmul(
-                intermediate_parallel, w2, tokens_per_expert, trans_b=False
+            fc2_output = self._grouped_matmul(
+                intermediate_parallel, w2, tokens_per_expert
             )
         else:
             # No token is allocated for local experts.

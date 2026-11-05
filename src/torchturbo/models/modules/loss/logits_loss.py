@@ -88,10 +88,24 @@ def logits_loss(
         logits, labels, normalizer_tensor, loss_scale_values
     ):
         loss_logits = logits_i if loss_scale != 0.0 else logits_i.detach()
+        flat_logits = loss_logits.reshape(-1, loss_logits.shape[-1])
+        flat_labels = label.reshape(-1).to(logits_i.device)
+        if logits_i.device.type == "npu":
+            valid = flat_labels != ignore_index
+            if bool(valid.any()):
+                flat_logits = flat_logits[valid]
+                flat_labels = flat_labels[valid]
+            else:
+                raw_loss = loss_logits.sum() * 0.0 / normalizer
+                if loss_scale != 0.0:
+                    scaled_loss = raw_loss * loss_scale
+                    total_loss = scaled_loss if total_loss is None else total_loss + scaled_loss
+                raw_losses.append(raw_loss.detach())
+                continue
         raw_loss = (
             ops.cross_entropy_loss(
-                loss_logits.reshape(-1, loss_logits.shape[-1]),
-                label.reshape(-1).to(logits_i.device),
+                flat_logits,
+                flat_labels,
                 reduction="sum",
                 ignore_index=ignore_index,
             )
